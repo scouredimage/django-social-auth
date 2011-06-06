@@ -13,6 +13,7 @@ field, check OAuthBackend class for details on how to extend it.
 """
 import cgi
 import urllib
+import urllib2
 
 from django.conf import settings
 from django.utils import simplejson
@@ -64,7 +65,7 @@ class FacebookAuth(BaseOAuth):
                                 'redirect_uri': self.redirect_uri,
                                 'client_secret': settings.FACEBOOK_API_SECRET,
                                 'code': self.data['code']})
-            response = cgi.parse_qs(urllib.urlopen(url).read())
+            response = cgi.parse_qs(urllib2.urlopen(url).read())
             access_token = response['access_token'][0]
             data = self.user_data(access_token)
             if data is not None:
@@ -87,7 +88,7 @@ class FacebookAuth(BaseOAuth):
         params = {'access_token': access_token,}
         url = FACEBOOK_CHECK_AUTH + '?' + urllib.urlencode(params)
         try:
-            return simplejson.load(urllib.urlopen(url))
+            return simplejson.load(urllib2.urlopen(url))
         except ValueError:
             return None
 
