@@ -20,8 +20,11 @@ SOCIAL_AUTH_LAST_LOGIN = getattr(settings, 'SOCIAL_AUTH_LAST_LOGIN',
 
 def auth(request, backend):
     """Start authentication process"""
-    complete_url = getattr(settings, 'SOCIAL_AUTH_COMPLETE_URL_NAME',
-                           'complete')
+    try:
+        complete_url = request.GET['callback']
+    except KeyError:
+        complete_url = getattr(settings, 'SOCIAL_AUTH_COMPLETE_URL_NAME',
+                               'complete')
     return auth_process(request, backend, complete_url)
 
 
