@@ -8,6 +8,7 @@ from django.contrib.auth import login, REDIRECT_FIELD_NAME
 from django.contrib.auth.decorators import login_required
 
 from social_auth.backends import get_backend
+from social_auth.utils import sanitize_redirect
 
 
 DEFAULT_REDIRECT = getattr(settings, 'SOCIAL_AUTH_LOGIN_REDIRECT_URL', '') or \
@@ -108,8 +109,10 @@ def auth_process(request, backend, complete_url_name):
     backend = get_backend(backend, request, redirect)
     if not backend:
         return HttpResponseServerError('Incorrect authentication service')
-    # Disable security checks in redirect_to parameter value
-    redirect = request.REQUEST.get(REDIRECT_FIELD_NAME)
+    # Check and sanitize a user-defined GET/POST redirect_to field value.
+    redirect = sanitize_redirect(request.get_host(),
+                                 request.REQUEST.get(REDIRECT_FIELD_NAME))
+    print 'REDIRECT=' + redirect
     request.session[REDIRECT_FIELD_NAME] = redirect or DEFAULT_REDIRECT
     if backend.uses_redirect:
         return HttpResponseRedirect(backend.auth_url())
