@@ -16,6 +16,7 @@ DEFAULT_REDIRECT = getattr(settings, 'SOCIAL_AUTH_LOGIN_REDIRECT_URL', '') or \
 NEW_USER_REDIRECT = getattr(settings, 'SOCIAL_AUTH_NEW_USER_REDIRECT_URL', '')
 SOCIAL_AUTH_LAST_LOGIN = getattr(settings, 'SOCIAL_AUTH_LAST_LOGIN',
                                  'social_auth_last_login_backend')
+REDIRECT_QUERY_STRING = 'social_auth_login_query_string'
 
 
 def auth(request, backend):
@@ -47,6 +48,10 @@ def complete_process(request, backend):
             request.session[error_key] = str(e)
 
     if user and getattr(user, 'is_active', True):
+        # Store query parameters passed in to login url (if any).
+        # This gets lost during auth login processing!
+        query_string = request.session.pop(REDIRECT_QUERY_STRING, '')
+
         login(request, user)
         if getattr(settings, 'SOCIAL_AUTH_SESSION_EXPIRATION', True):
             # Set session expiration date if present and not disabled by
@@ -68,8 +73,15 @@ def complete_process(request, backend):
 
         # store last login backend name in session
         request.session[SOCIAL_AUTH_LAST_LOGIN] = social_user.provider
+
+        # tack on login url query parameters
+        if query_string:
+            separator = '?' if url.find('?') == -1 else '&'
+            url += '%c%s' % (separator, query_string)
+
     else:
         url = getattr(settings, 'LOGIN_ERROR_URL', settings.LOGIN_URL)
+
     return HttpResponseRedirect(url)
 
 
@@ -109,10 +121,17 @@ def auth_process(request, backend, complete_url_name):
     backend = get_backend(backend, request, redirect)
     if not backend:
         return HttpResponseServerError('Incorrect authentication service')
+
     # Check and sanitize a user-defined GET/POST redirect_to field value.
     redirect = sanitize_redirect(request.get_host(),
                                  request.REQUEST.get(REDIRECT_FIELD_NAME))
+
     request.session[REDIRECT_FIELD_NAME] = redirect or DEFAULT_REDIRECT
+
+    # Store query parameters (if any). These will be tacked on to the end of
+    # the login redirect url in complete_process().
+    request.session[REDIRECT_QUERY_STRING] = request.META['QUERY_STRING']
+
     if backend.uses_redirect:
         return HttpResponseRedirect(backend.auth_url())
     else:
