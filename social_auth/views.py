@@ -126,7 +126,7 @@ def auth_process(request, backend, complete_url_name):
     redirect = sanitize_redirect(request.get_host(),
                                  request.REQUEST.get(REDIRECT_FIELD_NAME))
 
-    request.session[REDIRECT_FIELD_NAME] = redirect or DEFAULT_REDIRECT
+    request.session[REDIRECT_FIELD_NAME] = redirect
 
     # Store query parameters (if any). These will be tacked on to the end of
     # the login redirect url in complete_process().
