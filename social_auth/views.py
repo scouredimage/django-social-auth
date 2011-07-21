@@ -10,6 +10,9 @@ from django.contrib.auth.decorators import login_required
 from social_auth.backends import get_backend
 from social_auth.utils import sanitize_redirect
 
+from urlparse import parse_qsl
+from urllib import urlencode
+
 
 DEFAULT_REDIRECT = getattr(settings, 'SOCIAL_AUTH_LOGIN_REDIRECT_URL', '') or \
                    getattr(settings, 'LOGIN_REDIRECT_URL', '')
@@ -64,12 +67,15 @@ def complete_process(request, backend):
             if social_user.expiration_delta():
                 request.session.set_expiry(social_user.expiration_delta())
 
-        url = request.session.pop(REDIRECT_FIELD_NAME, '')
-        if not url:
-            if NEW_USER_REDIRECT and getattr(user, 'is_new', False):
+        if NEW_USER_REDIRECT and getattr(user, 'is_new', False):
+            url = request.session.pop(REDIRECT_FIELD_NAME, '')
+            if not url:
                 url = NEW_USER_REDIRECT
             else:
-                url = DEFAULT_REDIRECT
+                sep = '?' if NEW_USER_REDIRECT.find('?') == -1 else '&'
+                url = '%s%c%s=%s' % (NEW_USER_REDIRECT, sep, REDIRECT_FIELD_NAME, url)
+        else:
+            url = request.session.pop(REDIRECT_FIELD_NAME, '') or DEFAULT_REDIRECT
 
         # store last login backend name in session
         request.session[SOCIAL_AUTH_LAST_LOGIN] = social_user.provider
@@ -130,7 +136,9 @@ def auth_process(request, backend, complete_url_name):
 
     # Store query parameters (if any). These will be tacked on to the end of
     # the login redirect url in complete_process().
-    request.session[REDIRECT_QUERY_STRING] = request.META['QUERY_STRING']
+    all_params = dict(parse_qsl(request.META['QUERY_STRING']))
+    params = [(k, v) for k, v in all_params.items() if not k == REDIRECT_FIELD_NAME]
+    request.session[REDIRECT_QUERY_STRING] = urlencode(params)
 
     if backend.uses_redirect:
         return HttpResponseRedirect(backend.auth_url())
